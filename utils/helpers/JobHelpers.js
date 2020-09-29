@@ -43,7 +43,6 @@ const handleVesselLoadingLocationChange = async (
 	]);
 
 	// Set vessel loading time if PSA delivery.
-	let vesselLoadingDateTime = vesselLoadingDateTime;
 	if (vesselLoadingLocation.type === "port" && !edit) {
 		const vessel = _.find(vessels, ["vesselIMOID", vesselIMOID]);
 		vesselLoadingDateTime = getAutomatedVesselLoadingDateTime(vessel)
@@ -80,7 +79,7 @@ const filterAnchorage = (option, props) => {
 	return res;
 };
 
-const filterVessel = (option, props) => {
+const filterVessel = (option, props, type) => {
 	let text = props.text.toLowerCase();
 	if (
 		option.vesselCallsign.toLowerCase().indexOf(text) !== -1 ||
@@ -94,17 +93,38 @@ const filterVessel = (option, props) => {
 	let res = false;
 	for (let i = 0; i < textArr.length; i++) {
 		const o = textArr[i];
-		if (
-			o.length >= 3 &&
-			(option.vesselCallsign.toLowerCase().split(" ").includes(o) ||
-				option.vesselIMOID.toLowerCase().split(" ").includes(o) ||
-				option.vesselName.toLowerCase().split(" ").includes(o))
-		) {
-			option.priority = 2;
-			res = true;
-			break;
+		if (o.length >= 3) {
+			switch (type) {
+				case "vessel":
+					if (
+						option.vesselCallsign
+							.toLowerCase()
+							.split(" ")
+							.includes(o) ||
+						option.vesselIMOID
+							.toLowerCase()
+							.split(" ")
+							.includes(o) ||
+						option.vesselName.toLowerCase().split(" ").includes(o)
+					) {
+						option.priority = 2;
+						res = true;
+					}
+					break;
+
+				case "anchorage":
+					if (
+						option.name.toLowerCase().split(" ").includes(o) ||
+						option.code.toLowerCase().split(" ").includes(o)
+					) {
+						option.priority = 2;
+						res = true;
+						break;
+					}
+			}
 		}
 	}
+
 	return res;
 };
 

@@ -9,7 +9,7 @@ const validateJobCreation = async (job, user, apiUri, edit) => {
 	// Check if any service has been selected.
 	if (!job.makeTruckBooking && !job.makeLighterBooking) {
 		return {
-			success: false,
+			valid: false,
 			message: "Please select a service you would like us to provide",
 		};
 	}
@@ -31,7 +31,7 @@ const validateJobCreation = async (job, user, apiUri, edit) => {
 				)
 			) {
 				return {
-					success: false,
+					valid: false,
 					message:
 						"Pickup Date & Time must be at least 5 minutes apart",
 				};
@@ -48,7 +48,7 @@ const validateJobCreation = async (job, user, apiUri, edit) => {
 					))
 			) {
 				return {
-					success: false,
+					valid: false,
 					message:
 						"Pickup Date & Time must be after Job creation time",
 				};
@@ -60,7 +60,7 @@ const validateJobCreation = async (job, user, apiUri, edit) => {
 				)
 			) {
 				return {
-					success: false,
+					valid: false,
 					message:
 						"Pickup Date & Time must be before Job delivery time",
 				};
@@ -85,7 +85,7 @@ const validateJobCreation = async (job, user, apiUri, edit) => {
 				)
 			) {
 				return {
-					success: false,
+					valid: false,
 					message:
 						"Offland Date & Time must be at least 5 minutes apart",
 				};
@@ -102,7 +102,7 @@ const validateJobCreation = async (job, user, apiUri, edit) => {
 					))
 			) {
 				return {
-					success: false,
+					valid: false,
 					message:
 						"Offland Date & Time must be after Job creation time",
 				};
@@ -132,7 +132,7 @@ const validateJobCreation = async (job, user, apiUri, edit) => {
 				job.vesselQueryResults = result;
 			} else {
 				return {
-					success: false,
+					valid: false,
 					message: `There is no such Vessel with Name: ${queryVesselName}`,
 				};
 			}
@@ -144,30 +144,39 @@ const validateJobCreation = async (job, user, apiUri, edit) => {
 	const filteredItems = filterItems(job.jobItems);
 	const filteredJobOfflandItems = filterItems(job.jobOfflandItems);
 
-	if (job.vesselName === "" && !filterNonVesselDelivery()) {
+	const nonVesselDelivery = filterNonVesselDelivery(
+		job.vesselLoadingLocation.type,
+		job.otherVesselLoadingLocation
+	);
+	job.vesselLoadingLocation = nonVesselDelivery.vesselLoadingLocation;
+
+	if (job.vesselName === "" && !nonVesselDelivery.keyWordExists) {
 		return {
-			success: false,
+			valid: false,
 			message: "Vessel Name must be filled",
 		};
-	} else if (!filterNonVesselDelivery() && job.vesselIMOID.trim() === "") {
+	} else if (
+		!nonVesselDelivery.keyWordExists &&
+		job.vesselIMOID.trim() === ""
+	) {
 		return {
-			success: false,
+			valid: false,
 			message: "Please select a vessel!",
 		};
 	} else if (job.vesselLoadingDateTime === "") {
 		return {
-			success: false,
+			valid: false,
 			message: "Vessel Loading Date and Time must be filled",
 		};
 	} else if (filteredItems.length < 1 && filteredJobOfflandItems.length < 1) {
 		return {
-			success: false,
+			valid: false,
 			message:
 				"At least one item must be submitted for delivery or offlanding!",
 		};
 	} else if (job.makeLighterBooking && !job.vesselArrivalDateTime) {
 		return {
-			success: false,
+			valid: false,
 			message: "Please provide a valid Vessel ETA",
 		};
 	} else if (
@@ -175,12 +184,12 @@ const validateJobCreation = async (job, user, apiUri, edit) => {
 		job.otherVesselLoadingLocation.trim() === ""
 	) {
 		return {
-			success: false,
+			valid: false,
 			message: "Vessel Loading Location must be filled",
 		};
 	} else if (user.userType === "Admin" && job.user._id === "Please Select") {
 		return {
-			success: false,
+			valid: false,
 			message: "A user must be selected",
 		};
 	} else if (
@@ -191,12 +200,12 @@ const validateJobCreation = async (job, user, apiUri, edit) => {
 					""))
 	) {
 		return {
-			success: false,
+			valid: false,
 			message: "At least one offland location is required!",
 		};
 	} else if (job.makeLighterBooking && job.anchorageName === "") {
 		return {
-			success: false,
+			valid: false,
 			message: "Please select an anchorage location",
 		};
 	} else if (
@@ -204,7 +213,7 @@ const validateJobCreation = async (job, user, apiUri, edit) => {
 		job.jobPICContact.trim() === ""
 	) {
 		return {
-			success: false,
+			valid: false,
 			message: "Please enter a valid PIC contact",
 		};
 	} else if (
@@ -212,7 +221,7 @@ const validateJobCreation = async (job, user, apiUri, edit) => {
 		job.jobPICName.trim() === ""
 	) {
 		return {
-			success: false,
+			valid: false,
 			message: "Please enter a valid PIC name",
 		};
 	} else if (
@@ -221,7 +230,7 @@ const validateJobCreation = async (job, user, apiUri, edit) => {
 		moment(job.vesselLoadingDateTime).isBefore(new Date())
 	) {
 		return {
-			success: false,
+			valid: false,
 			message:
 				"Vessel Loading Date & Time must be after job booking time",
 		};
@@ -232,7 +241,7 @@ const validateJobCreation = async (job, user, apiUri, edit) => {
 		const letters = /^[A-Za-z]+$/;
 		if (!boardingName.match(letters)) {
 			return {
-				success: false,
+				valid: false,
 				message:
 					"Please enter a valid boarding name, with only alphabets.",
 			};
@@ -244,7 +253,7 @@ const validateJobCreation = async (job, user, apiUri, edit) => {
 		const numbers = /^[0-9]+$/;
 		if (!boardingContact.match(numbers)) {
 			return {
-				success: false,
+				valid: false,
 				message:
 					"Please enter a valid boarding contact, with only numbers.",
 			};
@@ -252,7 +261,7 @@ const validateJobCreation = async (job, user, apiUri, edit) => {
 	}
 
 	return {
-		success: true,
+		valid: true,
 	};
 };
 
