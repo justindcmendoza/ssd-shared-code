@@ -1,6 +1,32 @@
 import _ from "lodash";
 import moment from "moment";
 
+const vesselLoadingLocationChange = (
+	vesselId,
+	vesselLoadingLocations,
+	vessels,
+	vesselLoadingDateTime,
+	vesselIMOID,
+	edit
+) => {
+	const vesselLoadingLocation = _.find(vesselLoadingLocations, [
+		"_id",
+		vesselId,
+		edit,
+	]);
+
+	let newVesselLoadingDateTime = vesselLoadingDateTime;
+	// Set vessel loading time if PSA delivery.
+	if (vesselLoadingLocation.type === "port" && !edit) {
+		const vessel = _.find(vessels, ["vesselIMOID", vesselIMOID]);
+		newVesselLoadingDateTime = getAutomatedVesselLoadingDateTime(vessel)
+			? getAutomatedVesselLoadingDateTime(vessel)
+			: vesselLoadingDateTime;
+	}
+
+	return { vesselLoadingLocation, newVesselLoadingDateTime };
+};
+
 const getAutomatedVesselLoadingDateTime = (vessel) => {
 	const psaTimeComparator = new Date();
 
@@ -29,28 +55,33 @@ const getAutomatedVesselLoadingDateTime = (vessel) => {
 		: null;
 };
 
-const handleVesselLoadingLocationChange = async (
-	event,
+const filterVesselLoadingLocations = (
 	vesselLoadingLocations,
-	vessels,
-	vesselLoadingDateTime,
-	vesselIMOID,
-	edit
+	makeLighterBooking
 ) => {
-	const vesselLoadingLocation = _.find(vesselLoadingLocations, [
-		"_id",
-		event.target.value,
-	]);
+	const sortedVesselLoadingLocations = [];
+	let otherVesselLoadingLocation = null;
 
-	// Set vessel loading time if PSA delivery.
-	if (vesselLoadingLocation.type === "port" && !edit) {
-		const vessel = _.find(vessels, ["vesselIMOID", vesselIMOID]);
-		vesselLoadingDateTime = getAutomatedVesselLoadingDateTime(vessel)
-			? getAutomatedVesselLoadingDateTime(vessel)
-			: vesselLoadingDateTime;
+	for (let i = 0; i < vesselLoadingLocations.length; i++) {
+		const vesselLoadingLocation = vesselLoadingLocations[i];
+		if (makeLighterBooking) {
+			if (vesselLoadingLocation.type === "anchorage") {
+				sortedVesselLoadingLocations.push(vesselLoadingLocation);
+			}
+		} else {
+			if (vesselLoadingLocation.type !== "others") {
+				sortedVesselLoadingLocations.push(vesselLoadingLocation);
+			} else {
+				otherVesselLoadingLocation = vesselLoadingLocation;
+			}
+		}
 	}
 
-	return { vesselLoadingLocation, vesselLoadingDateTime };
+	if (otherVesselLoadingLocation) {
+		sortedVesselLoadingLocations.push(otherVesselLoadingLocation);
+	}
+
+	return sortedVesselLoadingLocations;
 };
 
 const filterAnchorage = (option, props) => {
@@ -79,8 +110,8 @@ const filterAnchorage = (option, props) => {
 	return res;
 };
 
-const filterVessel = (option, props, type) => {
-	let text = props.text.toLowerCase();
+const filterVessel = (option, keyword, type) => {
+	let text = keyword.toLowerCase();
 	if (
 		option.vesselCallsign.toLowerCase().indexOf(text) !== -1 ||
 		option.vesselIMOID.toLowerCase().indexOf(text) !== -1 ||
@@ -141,9 +172,8 @@ const filterItems = (items) => {
 	return filteredItems;
 };
 
-const filterCareOffs = () => {
+const filterCareOffs = (careOffParties) => {
 	// Check for empty care-off entries
-	const careOffParties = this.state.careOffParties;
 	const filteredCareOffParties = [];
 	for (let i = 0; i < careOffParties.length; i++) {
 		const careOffParty = careOffParties[i];
@@ -163,7 +193,8 @@ const filterCareOffs = () => {
 
 const filterNonVesselDelivery = (
 	vesselLoadingLocationType,
-	otherVesselLoadingLocation
+	otherVesselLoadingLocation,
+	vesselLoadingLocations
 ) => {
 	if (vesselLoadingLocationType !== "others") {
 		return false;
@@ -189,7 +220,7 @@ const filterNonVesselDelivery = (
 				) {
 					keyWordExists = true;
 					const vesselLoadingLocation = _.find(
-						this.state.vesselLoadingLocations,
+						vesselLoadingLocations,
 						["name", key]
 					);
 					finalVesselLoadingLocation = vesselLoadingLocation;
@@ -210,7 +241,7 @@ const filterNonVesselDelivery = (
 				) {
 					keyWordExists = true;
 					const vesselLoadingLocation = _.find(
-						this.state.vesselLoadingLocations,
+						vesselLoadingLocations,
 						["name", "PSA"]
 					);
 					finalVesselLoadingLocation = vesselLoadingLocation;
@@ -225,12 +256,97 @@ const filterNonVesselDelivery = (
 	}
 };
 
+const processJobData = (job) => {
+	const filteredItems = filterItems(job.jobItems);
+	const filteredJobOfflandItems = filterItems(job.jobOfflandItems);
+
+	// Check for empty care-off entries
+	// const filteredCareOffParties = filterCareOffs();
+
+	job.jobItems = filteredItems;
+	job.jobOfflandItems = filteredJobOfflandItems;
+	// job.careOffParties = filteredCareOffParties;
+
+	// job.truckLogisticsCompany =
+	// 	job.truckLogisticsCompany._id === "Please Select"
+	// 		? null
+	// 		: job.truckLogisticsCompany;
+	// job.boatLogisticsCompany =
+	// 	job.boatLogisticsCompany._id === "Please Select"
+	// 		? null
+	// 		: job.boatLogisticsCompany;
+
+	// Get Cargo Nets Count
+	if (
+		job.vesselLoadingLocation.type === "port" &&
+		job.jobItems.length > 0 &&
+		job.jobAdditionalItems.length === 0
+	) {
+		let numNets = 0;
+		for (let i = 0; i < job.jobItems.length; i++) {
+			const jobItem = job.jobItems[i];
+			numNets += jobItem.quantity;
+		}
+		job.jobAdditionalItems = [
+			{
+				quantity: numNets,
+				uom: "Cargo Net",
+				job: job ? job._id : null,
+			},
+		];
+	}
+
+	let newJobData = {
+		jobId: job.index,
+		vesselIMOID: job.vessel.vesselIMOID,
+		vesselName: job.vessel.vesselName,
+		vesselCallsign: job.vessel.vesselCallsign,
+		anchorageCode: job.vesselAnchorageLocation.code,
+		truckLogisticsCompany: job.truckLogisticsCompany,
+		// boatLogisticsCompany,
+		vesselLoadingLocation: job.vesselLoadingLocation,
+		vesselArrivalDateTime: job.vesselArrivalDateTime,
+		jobItems: job.jobItems,
+		makeTruckBooking: job.makeTruckBooking,
+		makeLighterBooking: job.makeLighterBooking,
+		jobPICName: job.jobPICName,
+		jobPICContact: job.jobPICContact,
+		jobOfflandItems: job.jobOfflandItems,
+		careOffParties: job.careOffParties,
+		remarks: job.remarks,
+		psaBerthingDateTime: job.psaBerthingDateTime,
+		adminRemarks: job.adminRemarks,
+		boardingName: job.boardingName,
+		boardingContact: job.boardingContact,
+		createOfflandPermit: job.createOfflandPermit,
+		psaUnberthingDateTime: job.psaUnberthingDateTime,
+		vesselLoadingDateTime: job.vesselLoadingDateTime,
+		createDSA: job.createDSA,
+		pickup: job.pickup,
+		pickupDetails: job.pickupDetails,
+		offlandDetails: job.offlandDetails,
+		vesselLighterCompany: job.vesselLighterCompany,
+		vesselLighterName: job.vesselLighterName,
+		vesselLighterLocation: job.vesselLighterLocation,
+		vesselLighterRemarks: job.vesselLighterRemarks,
+		otherVesselLoadingLocation: job.otherVesselLoadingLocation,
+		hasBoarding: job.hasBoarding,
+		user: job.user,
+		// logisticsCompany,
+		jobAdditionalItems: job.jobAdditionalItems,
+		hasDGItems: job.hasDGItems,
+	};
+	return newJobData;
+};
+
 export {
+	vesselLoadingLocationChange,
 	getAutomatedVesselLoadingDateTime,
-	handleVesselLoadingLocationChange,
 	filterAnchorage,
 	filterVessel,
 	filterItems,
 	filterCareOffs,
 	filterNonVesselDelivery,
+	filterVesselLoadingLocations,
+	processJobData,
 };
