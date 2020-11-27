@@ -24,7 +24,10 @@ const vesselLoadingLocationChange = (
 			: vesselLoadingDateTime;
 	}
 
-	return { vesselLoadingLocation, newVesselLoadingDateTime };
+	return {
+		vesselLoadingLocation,
+		vesselLoadingDateTime: newVesselLoadingDateTime,
+	};
 };
 
 const getAutomatedVesselLoadingDateTime = (vessel) => {

@@ -182,18 +182,6 @@ const validateJobCreation = async (
 						"Pickup Date & Time must be before Job delivery time",
 				};
 			}
-			if (
-				job.vesselLoadingLocation.type === "anchorage" &&
-				moment(pickupDetail.pickupDateTime).isAfter(
-					moment(job.vesselArrivalDateTime)
-				)
-			) {
-				return {
-					valid: false,
-					message:
-						"Pickup Date & Time must be before vessel delivery time",
-				};
-			}
 		}
 	}
 
