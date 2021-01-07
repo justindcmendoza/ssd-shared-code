@@ -7,7 +7,7 @@ export default class Job {
 	jobTrackers = [];
 	paymentTrackers = [];
 	vesselLoadingLocation = {};
-	otherVesselLoadingLocation = "";
+	otherVesselLoadingLocation = {};
 	user = {};
 	index = "";
 	jobItems = [];
@@ -54,6 +54,7 @@ export default class Job {
 	jobPICContact = "";
 	services = [];
 	version = 1;
+	lighterBoatCompany = {};
 
 	makeTruckBooking = false;
 	makeLighterBooking = false;

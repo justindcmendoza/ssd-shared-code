@@ -1,14 +1,14 @@
 import moment from "moment";
+import axios from "axios";
 import {
 	filterItems,
-	filterCareOffs,
 	filterNonVesselDelivery,
+	filterCareOffs,
 } from "../helpers/JobHelpers";
 
 const validateJobCreation = async (
 	data,
 	vesselLoadingLocations,
-	user,
 	apiUri,
 	edit
 ) => {
@@ -27,26 +27,44 @@ const validateJobCreation = async (
 		vesselLoadingLocations
 	);
 
-	if (nonVesselDelivery.vesselLoadingLocation) {
-		job.vesselLoadingLocation = nonVesselDelivery.vesselLoadingLocation;
+	if (!job.vessel.vesselName && !nonVesselDelivery.keyWordExists) {
+		return {
+			valid: false,
+			message: "Vessel Name must be filled",
+		};
 	}
-
-	// if (job.vesselName === "" && !nonVesselDelivery.keyWordExists) {
-	// 	return {
-	// 		valid: false,
-	// 		message: "Vessel Name must be filled",
-	// 	};
-	// }
 	if (!nonVesselDelivery.keyWordExists && !job.vessel.vesselIMOID) {
 		return {
 			valid: false,
 			message: "Please select a vessel.",
 		};
-	} else if (job.vesselLoadingDateTime === "") {
-		return {
-			valid: false,
-			message: "Vessel Loading Date and Time must be filled",
-		};
+	}
+
+	if (
+		job.vessel.vesselIMOID === "" &&
+		job.vessel.vesselCallsign === "" &&
+		job.vessel.vesselLoadingLocation.type.toLowerCase() !== "others"
+	) {
+		const queryVesselName = job.vessel.vesselName;
+
+		try {
+			const res = await axios.get(
+				`${apiUri}/api/vessels/search?query=${queryVesselName}`
+			);
+			const result = res.data;
+			if (result.length === 1) {
+				job.vessel = result[0];
+			} else if (result.length > 1) {
+				job.vesselQueryResults = result;
+			} else {
+				return {
+					valid: false,
+					message: `There is no such Vessel with Name: ${queryVesselName}`,
+				};
+			}
+		} catch (err) {
+			console.log(err);
+		}
 	}
 
 	const filteredItems = filterItems(job.jobItems);
@@ -58,6 +76,15 @@ const validateJobCreation = async (
 				"At least one item must be submitted for delivery or offlanding!",
 		};
 	}
+
+	if (job.offlandDetails.length > 0 && filteredJobOfflandItems.length < 1) {
+		return {
+			valid: false,
+			message: "At least one item must be submitted for offlanding!",
+		};
+	}
+
+	// const filteredCareOffParties = filterCareOffs(job.careOffParties)
 
 	if (job.makeLighterBooking && !job.vesselArrivalDateTime) {
 		return {
@@ -75,41 +102,24 @@ const validateJobCreation = async (
 			valid: false,
 			message: "Other Vessel Loading Location is required",
 		};
-		// } else if (user.userType === "Admin" && job.user._id === "Please Select") {
-		// 	return {
-		// 		valid: false,
-		// 		message: "A user must be selected",
-		// 	};
 	}
-	// else if (
-	// 	job.vessel.vesselIMOID === "" &&
-	// 	job.vessel.vesselCallsign === "" &&
-	// 	job.vessel.vesselLoadingLocation.type !== "others"
-	// ) {
-	// 	const queryVesselName = job.vessel.vesselName;
 
-	// 	try {
-	// 		const res = await axios.get(
-	// 			`${apiUri}/api/vessels/search?query=${queryVesselName}`
-	// 		);
-	// 		const result = res.data;
-	// 		if (result.length === 1) {
-	// 			job.vesselIMOID = result[0].vesselIMOID
-	// 				? result[0].vesselIMOID
-	// 				: "";
-	// 			job.result[0] ? result[0].vesselName : "";
-	// 			job.result[0] ? result[0].vesselCallsign : "";
-	// 		} else if (result.length > 1) {
-	// 			job.vesselQueryResults = result;
-	// 		} else {
-	// 			return {
-	// 				valid: false,
-	// 				message: `There is no such Vessel with Name: ${queryVesselName}`,
-	// 			};
-	// 		}
-	// 	} catch (err) {
-	// 		console.log(err);
-	// 	}
+	if (
+		job.makeLighterBooking &&
+		job.vesselLoadingLocation.type !== "anchorage"
+	) {
+		return {
+			valid: false,
+			message:
+				"Invalid vessel loading location for selected booking type.",
+		};
+	}
+
+	// if (user.userType === "Admin" && job.user._id === "Please Select") {
+	// 	return {
+	// 		valid: false,
+	// 		message: "A user must be selected",
+	// 	};
 	// }
 
 	if (
@@ -171,7 +181,6 @@ const validateJobCreation = async (
 			}
 			if (
 				job.vesselLoadingLocation.type !== "port" &&
-				job.vesselLoadingLocation.type !== "anchorage" &&
 				moment(pickupDetail.pickupDateTime).isAfter(
 					moment(job.vesselLoadingDateTime)
 				)
@@ -227,20 +236,14 @@ const validateJobCreation = async (
 		}
 	}
 
-	if (job.jobPICName.trim() !== "" && job.jobPICContact.trim() === "") {
+	if (job.vesselLoadingDateTime === "") {
 		return {
 			valid: false,
-			message: "Please enter a valid PIC contact",
+			message: "Vessel Loading Date and Time must be filled",
 		};
-	} else if (
-		job.jobPICContact.trim() !== "" &&
-		job.jobPICName.trim() === ""
-	) {
-		return {
-			valid: false,
-			message: "Please enter a valid PIC name",
-		};
-	} else if (
+	}
+
+	if (
 		!edit &&
 		job.vesselLoadingLocation.type !== "port" &&
 		moment(job.vesselLoadingDateTime).isBefore(new Date())
@@ -252,6 +255,24 @@ const validateJobCreation = async (
 		};
 	}
 
+	if (
+		job.jobPICName.trim() !== "" &&
+		job.jobPICContact.toString().trim() === ""
+	) {
+		return {
+			valid: false,
+			message: "Please enter a valid PIC contact",
+		};
+	} else if (
+		job.jobPICContact.toString().trim() !== "" &&
+		job.jobPICName.trim() === ""
+	) {
+		return {
+			valid: false,
+			message: "Please enter a valid PIC name",
+		};
+	}
+
 	if (job.hasBoarding && (!job.boardingName || !job.boardingContact)) {
 		return {
 			valid: false,
@@ -260,7 +281,7 @@ const validateJobCreation = async (
 	}
 	if (job.hasBoarding && job.boardingName.trim() !== "") {
 		const boardingName = job.boardingName.trim();
-		const letters = /^[A-Za-z]+$/;
+		const letters = /^[A-Za-z\s]+$/;
 		if (!boardingName.match(letters)) {
 			return {
 				valid: false,
@@ -270,8 +291,8 @@ const validateJobCreation = async (
 		}
 	}
 
-	if (job.hasBoarding && job.boardingContact.trim() !== "") {
-		const boardingContact = job.boardingContact.trim();
+	if (job.hasBoarding && job.boardingContact.toString().trim() !== "") {
+		const boardingContact = job.boardingContact.toString().trim();
 		const numbers = /^[0-9]+$/;
 		if (!boardingContact.match(numbers)) {
 			return {
@@ -280,6 +301,14 @@ const validateJobCreation = async (
 					"Please enter a valid boarding contact, with only numbers.",
 			};
 		}
+	}
+
+	if (
+		job.vesselLoadingLocation.type === "anchorage" &&
+		(!job.lighterBoatCompany ||
+			job.lighterBoatCompany._id === "Please Select")
+	) {
+		return "Please select a Lighter Company";
 	}
 
 	return {
