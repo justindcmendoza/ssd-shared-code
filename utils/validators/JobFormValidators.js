@@ -96,7 +96,7 @@ const validateJobCreation = async (
 	// Check Other vessel loading location
 	if (
 		job.vesselLoadingLocation.type === "others" &&
-		job.otherVesselLoadingLocation.trim() === ""
+		job.otherVesselLoadingLocation.name.trim() === ""
 	) {
 		return {
 			valid: false,

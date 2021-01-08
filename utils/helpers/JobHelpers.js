@@ -216,7 +216,7 @@ const filterNonVesselDelivery = (
 			for (let i = 0; i < jpKeyWords.length; i++) {
 				const jpKeyWord = jpKeyWords[i];
 				if (
-					otherVesselLoadingLocation
+					otherVesselLoadingLocation.name
 						.trim()
 						.toLowerCase()
 						.includes(jpKeyWord)
@@ -237,7 +237,7 @@ const filterNonVesselDelivery = (
 			for (let i = 0; i < psaKeyWords.length; i++) {
 				const psaKeyWord = psaKeyWords[i];
 				if (
-					otherVesselLoadingLocation
+					otherVesselLoadingLocation.name
 						.trim()
 						.toLowerCase()
 						.includes(psaKeyWord)
