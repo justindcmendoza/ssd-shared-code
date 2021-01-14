@@ -199,7 +199,7 @@ const filterNonVesselDelivery = (
 	otherVesselLoadingLocation,
 	vesselLoadingLocations
 ) => {
-	if (vesselLoadingLocationType !== "others") {
+	if (!vesselLoadingLocationType || vesselLoadingLocationType !== "others") {
 		return false;
 	} else {
 		const jpKeyWordList = {
@@ -216,7 +216,7 @@ const filterNonVesselDelivery = (
 			for (let i = 0; i < jpKeyWords.length; i++) {
 				const jpKeyWord = jpKeyWords[i];
 				if (
-					otherVesselLoadingLocation
+					otherVesselLoadingLocation.name
 						.trim()
 						.toLowerCase()
 						.includes(jpKeyWord)
@@ -237,7 +237,7 @@ const filterNonVesselDelivery = (
 			for (let i = 0; i < psaKeyWords.length; i++) {
 				const psaKeyWord = psaKeyWords[i];
 				if (
-					otherVesselLoadingLocation
+					otherVesselLoadingLocation.name
 						.trim()
 						.toLowerCase()
 						.includes(psaKeyWord)
@@ -313,14 +313,14 @@ const processJobData = (job) => {
 		makeTruckBooking: job.makeTruckBooking,
 		makeLighterBooking: job.makeLighterBooking,
 		jobPICName: job.jobPICName,
-		jobPICContact: job.jobPICContact,
+		jobPICContact: job.jobPICContact.toString(),
 		jobOfflandItems: job.jobOfflandItems,
 		careOffParties: job.careOffParties,
 		remarks: job.remarks,
 		psaBerthingDateTime: job.psaBerthingDateTime,
 		adminRemarks: job.adminRemarks,
 		boardingName: job.boardingName,
-		boardingContact: job.boardingContact,
+		boardingContact: job.boardingContact.toString(),
 		createOfflandPermit: job.createOfflandPermit,
 		psaUnberthingDateTime: job.psaUnberthingDateTime,
 		vesselLoadingDateTime: job.vesselLoadingDateTime,
