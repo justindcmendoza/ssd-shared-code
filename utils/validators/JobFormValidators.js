@@ -305,10 +305,13 @@ const validateJobCreation = async (
 
 	if (
 		job.vesselLoadingLocation.type === "anchorage" &&
-		(!job.lighterBoatCompany ||
-			job.lighterBoatCompany._id === "Please Select")
+		(!job.lighterBoatCompany || !job.lighterBoatCompany._id)
 	) {
-		return "Please select a Lighter Company";
+		return {
+			valid: false,
+			message:
+			"Please select a Lighter Company",
+		};
 	}
 
 	return {
