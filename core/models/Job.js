@@ -7,7 +7,9 @@ export default class Job {
 	jobTrackers = [];
 	paymentTrackers = [];
 	vesselLoadingLocation = {};
-	otherVesselLoadingLocation = {};
+	otherVesselLoadingLocation = {
+		name: ""
+	};
 	user = {};
 	index = "";
 	jobItems = [];
