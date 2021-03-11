@@ -146,6 +146,12 @@ const validateJobCreation = async (data, vesselLoadingLocations, apiUri, edit) =
         }
         for (let i = 0; i < pickupDetails.length; i++) {
             let pickupDetail = pickupDetails[i];
+            if (!pickupDetail.pickupLocation.location || !pickupDetail.pickupLocation.location.name) {
+                return {
+                    valid: false,
+                    message: "Please select a pickup location",
+                };
+            }
             if (
                 (!edit && moment(pickupDetail.pickupDateTime).isBefore(moment())) ||
                 (edit && moment(pickupDetail.pickupDateTime).isBefore(job.job.jobBookingDateTime))
@@ -191,6 +197,12 @@ const validateJobCreation = async (data, vesselLoadingLocations, apiUri, edit) =
         }
         for (let i = 0; i < offlandDetails.length; i++) {
             let offlandDetail = offlandDetails[i];
+            if (!offlandDetail.offlandLocation.location || !offlandDetail.offlandLocation.location.name) {
+                return {
+                    valid: false,
+                    message: "Please select an offland location",
+                };
+            }
             if (
                 (!edit && moment(offlandDetail.offlandDateTime).isBefore(moment())) ||
                 (edit && moment(offlandDetail.offlandDateTime).isBefore(job.job.jobBookingDateTime))
